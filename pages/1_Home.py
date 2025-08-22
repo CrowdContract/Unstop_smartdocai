@@ -108,8 +108,8 @@ def set_background(image_path):
         </style>
     """, unsafe_allow_html=True)
 
-# --- Set background ---
-set_background("assets\\background.jpg")
+# --- Set background (✅ fixed path for Linux/Streamlit Cloud) ---
+set_background("assets/background.jpg")
 
 # --- Main UI Content ---
 st.markdown('<div class="main-title">Welcome to SmartDocAI</div>', unsafe_allow_html=True)
