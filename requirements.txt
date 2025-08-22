@@ -1,0 +1,17 @@
+streamlit
+streamlit-webrtc
+easyocr
+opencv-python
+Pillow
+numpy
+torch
+torchaudio
+torchvision
+openai-whisper
+gTTS
+pydub
+transformers
+sentencepiece
+matplotlib
+soundfile
+Librosa
