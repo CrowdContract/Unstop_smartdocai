@@ -1,3 +1,4 @@
+# pages/2_Analytics.py
 import streamlit as st
 import matplotlib.pyplot as plt
 import numpy as np
@@ -50,7 +51,7 @@ if audio_file:
         tmp_audio_path = tmp_file.name
 
     # Load audio using librosa
-    audio, sr = librosa.load(tmp_audio_path)
+    audio, sr = librosa.load(tmp_audio_path, sr=None, mono=True)
 
     # --- Basic Stats ---
     duration = librosa.get_duration(y=audio, sr=sr)
@@ -64,7 +65,7 @@ if audio_file:
     # --- Waveform Plot ---
     st.subheader("🎵 Audio Waveform")
     fig, ax = plt.subplots(figsize=(10, 3))
-    librosa.display.waveshow(audio, sr=sr, alpha=0.7)
+    librosa.display.waveshow(audio, sr=sr, alpha=0.7, ax=ax)
     ax.set_xlabel("Time (s)")
     ax.set_ylabel("Amplitude")
     ax.set_title("Waveform")
@@ -82,7 +83,10 @@ if audio_file:
     st.pyplot(fig2)
 
     # --- Cleanup ---
-    os.remove(tmp_audio_path)
+    try:
+        os.remove(tmp_audio_path)
+    except Exception:
+        pass
 else:
     st.info("Please upload an audio file to generate analytics.")
 

@@ -1,3 +1,4 @@
+# SmartDocAI_Features.py
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
@@ -11,101 +12,79 @@ import soundfile as sf
 import av
 import easyocr
 import cv2
+import requests
 from streamlit_webrtc import webrtc_streamer, AudioProcessorBase, WebRtcMode
 
-st.set_page_config(page_title="SmartDocAI | Features", page_icon="🧠", layout="centered")
+# ---------------- Config ----------------
+BACKEND_URL = os.environ.get("SMARTDOCAI_BACKEND", "http://localhost:8000")
 
-@st.cache_resource
+st.set_page_config(page_title="SmartDocAI | Features", page_icon="🧠", layout="wide")
+
+@st.cache_resource(show_spinner=False)
 def load_model():
     return whisper.load_model("base")
 model = load_model()
 
+# ---------------- Styling ----------------
 def set_background(image_path):
-    with open(image_path, "rb") as image_file:
-        encoded = base64.b64encode(image_file.read()).decode()
-    css = f"""
-    <style>
-    .stApp {{
-        background-image: url("data:image/jpg;base64,{encoded}");
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-        background-attachment: fixed;
-        font-family: 'Segoe UI', sans-serif;
-    }}
-    .title-box {{
-        text-align: center;
-        padding: 1rem;
-        margin-bottom: 2rem;
-        background-color: rgba(0,0,0,0.5);
-        border-radius: 12px;
-    }}
-    .title-box h1 {{
-        color: #ffffff;
-    }}
-    .feature-bar {{
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        gap: 2rem;
-        margin-bottom: 2rem;
-        padding-left: 1rem;
-        flex-wrap: wrap;
-    }}
-    .feature-box {{
-        font-size: 1.2rem;
-        background-color: #222;
-        color: #fff;
-        padding: 10px 20px;
-        border-radius: 10px;
-        text-align: center;
-        width: fit-content;
-    }}
-    .main-box {{
-        background-color: rgba(0, 0, 0, 0.4);
-        padding: 2rem;
-        border-radius: 15px;
-        color: white;
-    }}
-    .transcript-box {{
-        background-color: #222;
-        color: #fff;
-        padding: 1rem;
-        border-radius: 10px;
-        margin-top: 1rem;
-        font-family: monospace;
-        white-space: pre-wrap;
-    }}
-    .footer {{
-        text-align: center;
-        margin-top: 3rem;
-        padding: 1rem;
-        font-size: 0.9rem;
-        color: #ccc;
-    }}
-    </style>
-    """
-    st.markdown(css, unsafe_allow_html=True)
+    try:
+        with open(image_path, "rb") as image_file:
+            encoded = base64.b64encode(image_file.read()).decode()
+        css = f"""
+        <style>
+        .stApp {{
+            background-image: url("data:image/jpg;base64,{encoded}");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            font-family: 'Segoe UI', sans-serif;
+        }}
+        .title-box {{
+            text-align: center;
+            padding: 1rem;
+            margin-bottom: 1.25rem;
+            background-color: rgba(0,0,0,0.5);
+            border-radius: 12px;
+        }}
+        .title-box h1 {{ color: #ffffff; margin: 0; }}
+        .feature-bar {{
+            display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+            margin-bottom: .75rem; padding-left: .25rem;
+        }}
+        .feature-box {{
+            font-size: .95rem; background-color: #222; color: #fff;
+            padding: 8px 14px; border-radius: 10px; width: fit-content;
+        }}
+        .main-box {{ background-color: rgba(0, 0, 0, 0.45); padding: 1rem; border-radius: 15px; color: white; }}
+        .transcript-box {{ background-color: #222; color: #fff; padding: 1rem; border-radius: 10px; margin-top: 1rem; font-family: monospace; white-space: pre-wrap; }}
+        .footer {{ text-align: center; margin-top: 3rem; padding: 1rem; font-size: 0.9rem; color: #ccc; }}
+        .history-item {{ background:#111a; padding:.75rem; border-radius:10px; margin-bottom:.5rem; }}
+        .pill {{ display:inline-block; padding:2px 8px; border-radius:999px; background:#333; margin-left:6px; font-size:0.8rem; }}
+        </style>
+        """
+        st.markdown(css, unsafe_allow_html=True)
+    except Exception:
+        pass
 
+# Change path if your image lives somewhere else
 set_background("assets/background.jpg")
 
-st.markdown("""
-    <div class="title-box">
-        <h1>SmartDocAI Features</h1>
-    </div>
-""", unsafe_allow_html=True)
+st.markdown('<div class="title-box"><h1>SmartDocAI Features</h1></div>', unsafe_allow_html=True)
+st.markdown('<div class="feature-bar"><div class="feature-box">✨ Choose a Feature</div></div>', unsafe_allow_html=True)
 
-st.markdown("""
-    <div class="feature-bar">
-        <div class="feature-box">✨ Choose a Feature</div>
-    </div>
-""", unsafe_allow_html=True)
+option = st.radio(
+    "",
+    ["🖼️ Image to Text", "🎤 Voice to Text", "📝 Text to Voice", "🔊 Speak", "📄 Resume Insights"],
+    horizontal=True,
+    label_visibility="collapsed",
+)
 
-option = st.radio("", ["🖼️ Image to Text", "🎤 Voice to Text", "📝 Text to Voice", "🔊 Speak"], horizontal=True, label_visibility="collapsed")
-
+# ---------------- Image to Text ----------------
 if option == "🖼️ Image to Text":
     st.markdown('<div class="main-box">', unsafe_allow_html=True)
     st.subheader("🖼️ Upload an image to extract text and convert to voice")
+
     image_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
     if image_file:
         st.image(image_file, caption="Uploaded Image", use_container_width=True)
@@ -117,7 +96,6 @@ if option == "🖼️ Image to Text":
 
             height, width, _ = image_np.shape
             mid = width // 2
-
             left_col = image_np[:, :mid]
             right_col = image_np[:, mid:]
 
@@ -146,25 +124,31 @@ if option == "🖼️ Image to Text":
             st.warning("⚠️ No text found in the image.")
     st.markdown('</div>', unsafe_allow_html=True)
 
+# ---------------- Voice to Text ----------------
 elif option == "🎤 Voice to Text":
     st.markdown('<div class="main-box">', unsafe_allow_html=True)
     st.subheader("🎧 Upload an audio file to transcribe")
+
     audio_file = st.file_uploader("Choose an audio file", type=["mp3", "wav", "m4a"])
     if audio_file:
         st.audio(audio_file)
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_audio:
             temp_audio.write(audio_file.read())
             temp_path = temp_audio.name
+
         with st.spinner("Transcribing with Whisper..."):
             result = model.transcribe(temp_path)
+
         st.success("✅ Transcription Complete:")
         st.markdown(f'<div class="transcript-box">{result["text"]}</div>', unsafe_allow_html=True)
         st.download_button("📅 Download Transcript", result["text"], file_name="transcript.txt")
     st.markdown('</div>', unsafe_allow_html=True)
 
+# ---------------- Text to Voice ----------------
 elif option == "📝 Text to Voice":
     st.markdown('<div class="main-box">', unsafe_allow_html=True)
     st.subheader("💬 Enter text to convert into speech")
+
     user_input = st.text_area("Your text here...", height=150)
     if st.button("🔊 Convert and Play"):
         if user_input.strip():
@@ -180,6 +164,7 @@ elif option == "📝 Text to Voice":
             st.warning("⚠️ Please enter some text.")
     st.markdown('</div>', unsafe_allow_html=True)
 
+# ---------------- Speak (Live) ----------------
 elif option == "🔊 Speak":
     st.markdown('<div class="main-box">', unsafe_allow_html=True)
     st.subheader("🎙️ Click below and speak. When you're done, transcription will appear.")
@@ -202,21 +187,103 @@ elif option == "🔊 Speak":
     )
 
     if ctx.audio_processor and st.button("🔝 Stop & Transcribe"):
-        raw_audio = np.concatenate(ctx.audio_processor.frames, axis=0)
+        raw_audio = np.concatenate(ctx.audio_processor.frames, axis=0) if ctx.audio_processor.frames else np.array([])
         if raw_audio.size == 0:
             st.error("⚠️ No audio recorded. Please try again.")
         else:
+            # Convert to float32 PCM in range [-1, 1] and write wav at 16kHz
             audio_data = raw_audio.astype(np.int16).astype(np.float32) / 32768.0
             temp_path = tempfile.mktemp(suffix=".wav")
             sf.write(temp_path, audio_data, 16000, format='WAV')
             st.audio(temp_path)
+
             with st.spinner("Transcribing with Whisper..."):
                 result = model.transcribe(temp_path)
+
             st.success("✅ Transcription Complete:")
             st.markdown(f'<div class="transcript-box">{result["text"]}</div>', unsafe_allow_html=True)
             st.download_button("📅 Download Transcript", result["text"], file_name="live_transcript.txt")
     st.markdown('</div>', unsafe_allow_html=True)
 
+# ---------------- Resume Insights ----------------
+elif option == "📄 Resume Insights":
+    st.markdown('<div class="main-box">', unsafe_allow_html=True)
+    st.subheader("📄 Upload Resume (PDF) → AI Summary + History")
+
+    tabs = st.tabs(["Upload", "History"])
+
+    # ---- Upload tab ----
+    with tabs[0]:
+        pdf_file = st.file_uploader("Upload a PDF resume", type=["pdf"])
+        if st.button("🚀 Analyze Resume", type="primary") and pdf_file is None:
+            st.warning("Please upload a PDF first.")
+
+        if pdf_file and st.button("🚀 Analyze Resume", key="analyze_pdf"):
+            try:
+                with st.spinner("Uploading to backend and generating summary..."):
+                    files = {"file": (pdf_file.name, pdf_file.read(), "application/pdf")}
+                    resp = requests.post(f"{BACKEND_URL}/upload-resume", files=files, timeout=90)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    st.success("✅ Summary ready!")
+                    st.markdown("**Filename:** " + data.get("filename", ""))
+                    st.markdown("**Uploaded at (UTC):** " + data.get("uploaded_at", ""))
+                    st.markdown("**Used fallback:** " + str(data.get("used_fallback")))
+
+                    st.markdown("### 🧠 Summary")
+                    st.markdown(f'<div class="transcript-box">{data.get("summary","")}</div>', unsafe_allow_html=True)
+
+                    if data.get("top_words"):
+                        st.markdown("**Top words (fallback):** " + ", ".join(data["top_words"]))
+                else:
+                    st.error(f"Backend error ({resp.status_code}): {resp.text}")
+            except Exception as e:
+                st.error(f"Request failed: {e}")
+
+    # ---- History tab ----
+    with tabs[1]:
+        try:
+            with st.spinner("Fetching history..."):
+                hist_resp = requests.get(f"{BACKEND_URL}/insights?limit=50", timeout=30)
+            if hist_resp.status_code == 200:
+                items = hist_resp.json()
+                if not items:
+                    st.info("No history yet. Upload a resume in the 'Upload' tab.")
+                else:
+                    # Let user pick one
+                    labels = [f"#{it['id']} • {it['filename']} • {it['uploaded_at']}" for it in items]
+                    idx = st.selectbox("Select an entry", options=list(range(len(items))), format_func=lambda i: labels[i])
+                    sel = items[idx]
+
+                    # Show details
+                    st.markdown("---")
+                    colA, colB = st.columns([2, 1])
+                    with colA:
+                        st.markdown(f"**Filename:** {sel['filename']}")
+                        st.markdown(f"**Uploaded at (UTC):** {sel['uploaded_at']}")
+                        st.markdown(f"**Used fallback:** {sel['used_fallback']}")
+                    with colB:
+                        if sel.get("top_words"):
+                            st.markdown("**Top words:**")
+                            st.write(", ".join(sel["top_words"]))
+
+                    st.markdown("### 🧠 Summary")
+                    st.markdown(f'<div class="transcript-box">{sel["summary"]}</div>', unsafe_allow_html=True)
+
+                    # Direct fetch by id (demonstration)
+                    with st.expander("Fetch again by ID"):
+                        st.code(f"GET {BACKEND_URL}/insights?id={sel['id']}")
+                        if st.button("↻ Refresh this item"):
+                            one = requests.get(f"{BACKEND_URL}/insights?id={sel['id']}", timeout=30).json()
+                            st.markdown(f'<div class="transcript-box">{one["summary"]}</div>', unsafe_allow_html=True)
+            else:
+                st.error(f"Backend error ({hist_resp.status_code}): {hist_resp.text}")
+        except Exception as e:
+            st.error(f"Could not load history: {e}")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ---------------- Footer ----------------
 st.markdown("""
     <div class="footer">
         SmartDocAI | <a href="mailto:23127@iiitu.ac.in" style="color: #ffd700; text-decoration: none;">23127@iiitu.ac.in</a>
