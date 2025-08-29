@@ -1,4 +1,3 @@
-# SmartDocAI_Features.py
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
@@ -9,14 +8,12 @@ import tempfile
 import base64
 import numpy as np
 import soundfile as sf
-import av
 import easyocr
 import cv2
 import requests
-from streamlit_webrtc import webrtc_streamer, AudioProcessorBase, WebRtcMode
 
 # ---------------- Config ----------------
-BACKEND_URL = os.environ.get("SMARTDOCAI_BACKEND", "http://localhost:8000")
+BACKEND_URL = os.environ.get("SMARTDOCAI_BACKEND", "http://127.0.0.1:8000")
 
 st.set_page_config(page_title="SmartDocAI | Features", page_icon="🧠", layout="wide")
 
@@ -67,7 +64,6 @@ def set_background(image_path):
     except Exception:
         pass
 
-# Change path if your image lives somewhere else
 set_background("assets/background.jpg")
 
 st.markdown('<div class="title-box"><h1>SmartDocAI Features</h1></div>', unsafe_allow_html=True)
@@ -75,7 +71,7 @@ st.markdown('<div class="feature-bar"><div class="feature-box">✨ Choose a Feat
 
 option = st.radio(
     "",
-    ["🖼️ Image to Text", "🎤 Voice to Text", "📝 Text to Voice", "🔊 Speak", "📄 Resume Insights"],
+    ["🖼️ Image to Text", "🎤 Voice to Text", "📝 Text to Voice", "📄 Resume Insights"],
     horizontal=True,
     label_visibility="collapsed",
 )
@@ -164,47 +160,6 @@ elif option == "📝 Text to Voice":
             st.warning("⚠️ Please enter some text.")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ---------------- Speak (Live) ----------------
-elif option == "🔊 Speak":
-    st.markdown('<div class="main-box">', unsafe_allow_html=True)
-    st.subheader("🎙️ Click below and speak. When you're done, transcription will appear.")
-
-    class AudioProcessor(AudioProcessorBase):
-        def __init__(self):
-            self.frames = []
-
-        def recv(self, frame: av.AudioFrame) -> av.AudioFrame:
-            audio = frame.to_ndarray().flatten()
-            self.frames.append(audio)
-            return frame
-
-    ctx = webrtc_streamer(
-        key="live-audio",
-        mode=WebRtcMode.SENDRECV,
-        audio_receiver_size=1024,
-        media_stream_constraints={"video": False, "audio": True},
-        audio_processor_factory=AudioProcessor,
-    )
-
-    if ctx.audio_processor and st.button("🔝 Stop & Transcribe"):
-        raw_audio = np.concatenate(ctx.audio_processor.frames, axis=0) if ctx.audio_processor.frames else np.array([])
-        if raw_audio.size == 0:
-            st.error("⚠️ No audio recorded. Please try again.")
-        else:
-            # Convert to float32 PCM in range [-1, 1] and write wav at 16kHz
-            audio_data = raw_audio.astype(np.int16).astype(np.float32) / 32768.0
-            temp_path = tempfile.mktemp(suffix=".wav")
-            sf.write(temp_path, audio_data, 16000, format='WAV')
-            st.audio(temp_path)
-
-            with st.spinner("Transcribing with Whisper..."):
-                result = model.transcribe(temp_path)
-
-            st.success("✅ Transcription Complete:")
-            st.markdown(f'<div class="transcript-box">{result["text"]}</div>', unsafe_allow_html=True)
-            st.download_button("📅 Download Transcript", result["text"], file_name="live_transcript.txt")
-    st.markdown('</div>', unsafe_allow_html=True)
-
 # ---------------- Resume Insights ----------------
 elif option == "📄 Resume Insights":
     st.markdown('<div class="main-box">', unsafe_allow_html=True)
@@ -215,30 +170,29 @@ elif option == "📄 Resume Insights":
     # ---- Upload tab ----
     with tabs[0]:
         pdf_file = st.file_uploader("Upload a PDF resume", type=["pdf"])
-        if st.button("🚀 Analyze Resume", type="primary") and pdf_file is None:
-            st.warning("Please upload a PDF first.")
-
-        if pdf_file and st.button("🚀 Analyze Resume", key="analyze_pdf"):
-            try:
-                with st.spinner("Uploading to backend and generating summary..."):
-                    files = {"file": (pdf_file.name, pdf_file.read(), "application/pdf")}
-                    resp = requests.post(f"{BACKEND_URL}/upload-resume", files=files, timeout=90)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    st.success("✅ Summary ready!")
-                    st.markdown("**Filename:** " + data.get("filename", ""))
-                    st.markdown("**Uploaded at (UTC):** " + data.get("uploaded_at", ""))
-                    st.markdown("**Used fallback:** " + str(data.get("used_fallback")))
-
-                    st.markdown("### 🧠 Summary")
-                    st.markdown(f'<div class="transcript-box">{data.get("summary","")}</div>', unsafe_allow_html=True)
-
-                    if data.get("top_words"):
-                        st.markdown("**Top words (fallback):** " + ", ".join(data["top_words"]))
-                else:
-                    st.error(f"Backend error ({resp.status_code}): {resp.text}")
-            except Exception as e:
-                st.error(f"Request failed: {e}")
+        if pdf_file:
+            if st.button("🚀 Analyze Resume", type="primary"):
+                try:
+                    with st.spinner("Uploading to backend and generating summary..."):
+                        files = {"file": (pdf_file.name, pdf_file.read(), "application/pdf")}
+                        resp = requests.post(f"{BACKEND_URL}/upload-resume", files=files, timeout=90)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        if "error" in data:
+                            st.error(f"Backend error: {data['error']}")
+                        else:
+                            st.success("✅ Summary ready!")
+                            st.markdown("**Filename:** " + data.get("filename", ""))
+                            st.markdown("**Uploaded at (UTC):** " + data.get("uploaded_at", ""))
+                            st.markdown("**Used fallback:** " + str(data.get("used_fallback")))
+                            st.markdown("### 🧠 Summary")
+                            st.markdown(f'<div class="transcript-box">{data.get("summary","")}</div>', unsafe_allow_html=True)
+                            if data.get("top_words"):
+                                st.markdown("**Top words (fallback):** " + ", ".join(data["top_words"]))
+                    else:
+                        st.error(f"Backend error ({resp.status_code}): {resp.text}")
+                except Exception as e:
+                    st.error(f"Request failed: {e}")
 
     # ---- History tab ----
     with tabs[1]:
@@ -246,36 +200,40 @@ elif option == "📄 Resume Insights":
             with st.spinner("Fetching history..."):
                 hist_resp = requests.get(f"{BACKEND_URL}/insights?limit=50", timeout=30)
             if hist_resp.status_code == 200:
-                items = hist_resp.json()
-                if not items:
-                    st.info("No history yet. Upload a resume in the 'Upload' tab.")
+                payload = hist_resp.json()
+                if isinstance(payload, dict) and "error" in payload:
+                    st.error(payload["error"])
                 else:
-                    # Let user pick one
-                    labels = [f"#{it['id']} • {it['filename']} • {it['uploaded_at']}" for it in items]
-                    idx = st.selectbox("Select an entry", options=list(range(len(items))), format_func=lambda i: labels[i])
-                    sel = items[idx]
+                    items = payload if isinstance(payload, list) else []
+                    if not items:
+                        st.info("No history yet. Upload a resume in the 'Upload' tab.")
+                    else:
+                        labels = [f"#{it['id']} • {it['filename']} • {it['uploaded_at']}" for it in items]
+                        idx = st.selectbox("Select an entry", options=list(range(len(items))), format_func=lambda i: labels[i])
+                        sel = items[idx]
 
-                    # Show details
-                    st.markdown("---")
-                    colA, colB = st.columns([2, 1])
-                    with colA:
-                        st.markdown(f"**Filename:** {sel['filename']}")
-                        st.markdown(f"**Uploaded at (UTC):** {sel['uploaded_at']}")
-                        st.markdown(f"**Used fallback:** {sel['used_fallback']}")
-                    with colB:
-                        if sel.get("top_words"):
-                            st.markdown("**Top words:**")
-                            st.write(", ".join(sel["top_words"]))
+                        st.markdown("---")
+                        colA, colB = st.columns([2, 1])
+                        with colA:
+                            st.markdown(f"**Filename:** {sel['filename']}")
+                            st.markdown(f"**Uploaded at (UTC):** {sel['uploaded_at']}")
+                            st.markdown(f"**Used fallback:** {sel['used_fallback']}")
+                        with colB:
+                            if sel.get("top_words"):
+                                st.markdown("**Top words:**")
+                                st.write(", ".join(sel["top_words"]))
 
-                    st.markdown("### 🧠 Summary")
-                    st.markdown(f'<div class="transcript-box">{sel["summary"]}</div>', unsafe_allow_html=True)
+                        st.markdown("### 🧠 Summary")
+                        st.markdown(f'<div class="transcript-box">{sel["summary"]}</div>', unsafe_allow_html=True)
 
-                    # Direct fetch by id (demonstration)
-                    with st.expander("Fetch again by ID"):
-                        st.code(f"GET {BACKEND_URL}/insights?id={sel['id']}")
-                        if st.button("↻ Refresh this item"):
-                            one = requests.get(f"{BACKEND_URL}/insights?id={sel['id']}", timeout=30).json()
-                            st.markdown(f'<div class="transcript-box">{one["summary"]}</div>', unsafe_allow_html=True)
+                        with st.expander("Fetch again by ID"):
+                            st.code(f"GET {BACKEND_URL}/insights?id={sel['id']}")
+                            if st.button("↻ Refresh this item"):
+                                one = requests.get(f"{BACKEND_URL}/insights?id={sel['id']}", timeout=30).json()
+                                if isinstance(one, dict) and "error" in one:
+                                    st.error(one["error"])
+                                else:
+                                    st.markdown(f'<div class="transcript-box">{one.get("summary","")}</div>', unsafe_allow_html=True)
             else:
                 st.error(f"Backend error ({hist_resp.status_code}): {hist_resp.text}")
         except Exception as e:

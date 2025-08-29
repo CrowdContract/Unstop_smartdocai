@@ -1,17 +1,15 @@
-streamlit
-streamlit-webrtc
-easyocr
-opencv-python
-Pillow
-numpy
-torch
-torchaudio
-torchvision
-openai-whisper
-gTTS
-pydub
-transformers
-sentencepiece
-matplotlib
-soundfile
-Librosa
+# FastAPI server
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+python-multipart==0.0.9
+
+# PDF extraction
+pdfplumber==0.11.7
+pillow>=9.1
+
+# Env + HTTP
+python-dotenv==1.0.1
+requests==2.32.3
+
+# Optional helpers (safe to keep)
+sqlite-utils==3.36

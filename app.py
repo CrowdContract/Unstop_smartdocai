@@ -9,8 +9,8 @@ def set_css():
     <style>
         /* Global Styles */
         body {
-            font-family: 'Arial', sans-serif;
-            background: linear-gradient(to bottom right, #0A0A0A, #111111);
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(to bottom right, #0A0A0A, #1E1E1E);
             color: #f5f5f5;
             margin: 0;
             padding: 0;
@@ -21,68 +21,61 @@ def set_css():
 
         /* Sidebar */
         .css-1d391kg {
-            background-color: #1A1A1A;
+            background-color: #141414 !important;
             color: #f5f5f5;
             border: none;
             box-shadow: none;
             padding-top: 3rem;
         }
-        .stSidebar .sidebar-content {
-            padding: 2rem;
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #f5f5f5;
-            text-align: center;
-        }
-        .stSidebar .stRadio button {
-            background-color: #333;
-            color: #f5f5f5;
-            font-size: 1.1rem;
-            padding: 12px 20px;
-            border-radius: 8px;
-            transition: all 0.3s ease;
-        }
-        .stSidebar .stRadio button:hover {
-            background-color: #ffd700;
-            color: black;
-        }
 
         /* Main Title */
         h1 {
-            font-size: 3.5rem;
+            font-size: 3.2rem;
             font-weight: 700;
             color: #ffd700;
             text-align: center;
-            margin-top: 4rem;
-            text-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            text-shadow: 0 4px 12px rgba(0,0,0,0.6);
+        }
+        h2 {
+            color: #ffd700;
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 1rem;
         }
 
         /* Markdown Text */
         .stMarkdown {
-            font-size: 1.2rem;
-            line-height: 1.6;
+            font-size: 1.1rem;
+            line-height: 1.7;
+            margin: 0 auto;
             text-align: center;
-            margin-top: 2rem;
+            max-width: 900px;
         }
-        .stMarkdown a {
-            color: #ffd700;
-            font-weight: bold;
-            text-decoration: none;
-            border-bottom: 2px solid transparent;
-            transition: border-color 0.3s ease;
+
+        /* Card Layout */
+        .feature-card {
+            background: #1e1e1e;
+            padding: 1.5rem;
+            border-radius: 16px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            text-align: center;
         }
-        .stMarkdown a:hover {
-            border-bottom: 2px solid #ffd700;
+        .feature-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
         }
 
         /* Button Styling */
         .stButton button {
             background-color: #ffd700;
             color: black;
-            padding: 12px 30px;
-            font-size: 1.2rem;
+            padding: 12px 26px;
+            font-size: 1.1rem;
             font-weight: bold;
-            border-radius: 50px;
+            border-radius: 30px;
             border: none;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -90,20 +83,19 @@ def set_css():
         .stButton button:hover {
             background-color: #f7e600;
             transform: scale(1.05);
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 6px 18px rgba(0,0,0,0.4);
         }
-        
+
         /* Footer */
         footer {
-            background-color: rgba(0, 0, 0, 0.7);
+            background-color: rgba(0,0,0,0.75);
             color: #f5f5f5;
-            padding: 1.5rem;
+            padding: 1rem;
             text-align: center;
-            font-size: 1rem;
-            font-weight: 600;
+            font-size: 0.95rem;
+            font-weight: 500;
             border-radius: 10px 10px 0 0;
             margin-top: 3rem;
-            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
         }
         footer a {
             color: #ffd700;
@@ -118,37 +110,46 @@ def set_css():
 # --- Apply Global Styling ---
 set_css()
 
-# --- Navigation Sidebar ---
-st.sidebar.title("SmartDocAI")
-page = st.sidebar.radio("Select a page", ("Home", "Features", "Analytics"), label_visibility="collapsed")
+# --- Sidebar Navigation ---
+st.sidebar.title(" SmartDocAI")
+page = st.sidebar.radio("Navigation", ("Home", "Features", "Analytics"), label_visibility="collapsed")
 
 # --- Home Page ---
 if page == "Home":
     st.title("Welcome to SmartDocAI")
     st.markdown("""
-        SmartDocAI is designed to empower accessibility through AI-driven document understanding. 
-        This application offers features like:
-        - **Image to Text**
-        - **Voice to Text**
-        - **Text to Voice**
-        - **Live Speech Recognition**
+        SmartDocAI empowers accessibility through **AI-driven document insights**.  
+        Upload resumes, extract meaning, and explore powerful features — all in one place.
     """)
-    st.markdown("[Go to Features](#features)", unsafe_allow_html=True)
-    st.markdown("[Go to Analytics](#analytics)", unsafe_allow_html=True)
+
+    # Features Cards
+    st.markdown("### 🚀 Key Features")
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        st.markdown('<div class="feature-card"><h3>📄 Image → Text</h3><p>Extract text from images with OCR.</p></div>', unsafe_allow_html=True)
+    with col2:
+        st.markdown('<div class="feature-card"><h3>🎤 Voice → Text</h3><p>Convert recorded speech into accurate transcripts.</p></div>', unsafe_allow_html=True)
+    with col3:
+        st.markdown('<div class="feature-card"><h3>🔊 Text → Voice</h3><p>Generate natural voice from written text.</p></div>', unsafe_allow_html=True)
+    with col4:
+        st.markdown('<div class="feature-card"><h3>🖥️ Live Recognition</h3><p>Real-time speech recognition for live inputs.</p></div>', unsafe_allow_html=True)
+
+    st.write("")
+    st.markdown("### 🌟 Try It Out")
+    st.button("Go to Features")
 
 # --- Features Page ---
 elif page == "Features":
-    # Import and run features.py code here
     import pages.features
 
 # --- Analytics Page ---
 elif page == "Analytics":
-    # Import and run analytics.py code here
     import pages.analytics
 
 # --- Footer ---
 st.markdown("""
     <footer>
-        SmartDocAI | <a href="mailto:23127@iiitu.ac.in">23127@iiitu.ac.in</a>
+        SmartDocAI © 2025 | Made with  | Contact: <a href="mailto:23127@iiitu.ac.in">23127@iiitu.ac.in</a>
     </footer>
 """, unsafe_allow_html=True)
