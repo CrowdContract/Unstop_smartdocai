@@ -1,155 +1,139 @@
-import streamlit as st
+from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+import sqlite3
+import PyPDF2
+import datetime
+import collections
 
-# --- Page Configuration ---
-st.set_page_config(page_title="SmartDocAI", page_icon="🧠", layout="wide")
+app = FastAPI(title="SmartDocAI Backend")
 
-# --- Global Styling ---
-def set_css():
-    st.markdown("""
-    <style>
-        /* Global Styles */
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: linear-gradient(to bottom right, #0A0A0A, #1E1E1E);
-            color: #f5f5f5;
-            margin: 0;
-            padding: 0;
-        }
-        .stApp {
-            margin: 0;
-        }
+# Allow frontend (Streamlit) to talk to backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-        /* Sidebar */
-        .css-1d391kg {
-            background-color: #141414 !important;
-            color: #f5f5f5;
-            border: none;
-            box-shadow: none;
-            padding-top: 3rem;
-        }
+DB_PATH = "smartdocai.db"
 
-        /* Main Title */
-        h1 {
-            font-size: 3.2rem;
-            font-weight: 700;
-            color: #ffd700;
-            text-align: center;
-            margin-top: 2rem;
-            margin-bottom: 1rem;
-            text-shadow: 0 4px 12px rgba(0,0,0,0.6);
-        }
-        h2 {
-            color: #ffd700;
-            font-size: 2rem;
-            text-align: center;
-            margin-bottom: 1rem;
-        }
-
-        /* Markdown Text */
-        .stMarkdown {
-            font-size: 1.1rem;
-            line-height: 1.7;
-            margin: 0 auto;
-            text-align: center;
-            max-width: 900px;
-        }
-
-        /* Card Layout */
-        .feature-card {
-            background: #1e1e1e;
-            padding: 1.5rem;
-            border-radius: 16px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            text-align: center;
-        }
-        .feature-card:hover {
-            transform: translateY(-6px);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-        }
-
-        /* Button Styling */
-        .stButton button {
-            background-color: #ffd700;
-            color: black;
-            padding: 12px 26px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            border-radius: 30px;
-            border: none;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        .stButton button:hover {
-            background-color: #f7e600;
-            transform: scale(1.05);
-            box-shadow: 0 6px 18px rgba(0,0,0,0.4);
-        }
-
-        /* Footer */
-        footer {
-            background-color: rgba(0,0,0,0.75);
-            color: #f5f5f5;
-            padding: 1rem;
-            text-align: center;
-            font-size: 0.95rem;
-            font-weight: 500;
-            border-radius: 10px 10px 0 0;
-            margin-top: 3rem;
-        }
-        footer a {
-            color: #ffd700;
-            text-decoration: none;
-        }
-        footer a:hover {
-            text-decoration: underline;
-        }
-    </style>
-    """, unsafe_allow_html=True)
-
-# --- Apply Global Styling ---
-set_css()
-
-# --- Sidebar Navigation ---
-st.sidebar.title(" SmartDocAI")
-page = st.sidebar.radio("Navigation", ("Home", "Features", "Analytics"), label_visibility="collapsed")
-
-# --- Home Page ---
-if page == "Home":
-    st.title("Welcome to SmartDocAI")
-    st.markdown("""
-        SmartDocAI empowers accessibility through **AI-driven document insights**.  
-        Upload resumes, extract meaning, and explore powerful features — all in one place.
+# ================================
+# Database init + migration
+# ================================
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS resumes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        filename TEXT,
+        content TEXT
+    )
     """)
+    # Add new columns if missing
+    cols = [r[1] for r in cursor.execute("PRAGMA table_info(resumes);").fetchall()]
+    if "summary" not in cols:
+        cursor.execute("ALTER TABLE resumes ADD COLUMN summary TEXT")
+    if "uploaded_at" not in cols:
+        cursor.execute("ALTER TABLE resumes ADD COLUMN uploaded_at TEXT")
+    if "used_fallback" not in cols:
+        cursor.execute("ALTER TABLE resumes ADD COLUMN used_fallback TEXT")
+    if "top_words" not in cols:
+        cursor.execute("ALTER TABLE resumes ADD COLUMN top_words TEXT")
+    conn.commit()
+    conn.close()
 
-    # Features Cards
-    st.markdown("### 🚀 Key Features")
-    col1, col2, col3, col4 = st.columns(4)
+init_db()
 
-    with col1:
-        st.markdown('<div class="feature-card"><h3>📄 Image → Text</h3><p>Extract text from images with OCR.</p></div>', unsafe_allow_html=True)
-    with col2:
-        st.markdown('<div class="feature-card"><h3>🎤 Voice → Text</h3><p>Convert recorded speech into accurate transcripts.</p></div>', unsafe_allow_html=True)
-    with col3:
-        st.markdown('<div class="feature-card"><h3>🔊 Text → Voice</h3><p>Generate natural voice from written text.</p></div>', unsafe_allow_html=True)
-    with col4:
-        st.markdown('<div class="feature-card"><h3>🖥️ Live Recognition</h3><p>Real-time speech recognition for live inputs.</p></div>', unsafe_allow_html=True)
+# ================================
+# Fake summarizer (replace with Sarvam AI)
+# ================================
+def summarize_with_ai(text: str) -> str:
+    sentences = text.split(".")
+    return ". ".join(sentences[:3]).strip() if sentences else ""
 
-    st.write("")
-    st.markdown("### 🌟 Try It Out")
-    st.button("Go to Features")
+# ================================
+# API
+# ================================
+@app.get("/")
+def root():
+    return {"message": "SmartDocAI backend running", "endpoints": ["/upload-resume", "/insights"]}
 
-# --- Features Page ---
-elif page == "Features":
-    import pages.features
+@app.post("/upload-resume")
+async def upload_resume(file: UploadFile = File(...)):
+    try:
+        # Extract PDF text
+        file.file.seek(0)
+        pdf_reader = PyPDF2.PdfReader(file.file)
+        text = "\n".join([p.extract_text() or "" for p in pdf_reader.pages])
 
-# --- Analytics Page ---
-elif page == "Analytics":
-    import pages.analytics
+        uploaded_at = datetime.datetime.utcnow().isoformat()
+        summary = summarize_with_ai(text)
+        used_fallback = "False"
+        top_words = []
 
-# --- Footer ---
-st.markdown("""
-    <footer>
-        SmartDocAI © 2025 | Made with  | Contact: <a href="mailto:23127@iiitu.ac.in">23127@iiitu.ac.in</a>
-    </footer>
-""", unsafe_allow_html=True)
+        if not summary:
+            used_fallback = "True"
+            words = [w.lower() for w in text.split() if w.isalpha()]
+            counter = collections.Counter(words)
+            top_words = [w for w, _ in counter.most_common(5)]
+            summary = "Fallback summary generated from top words."
+
+        # Store in DB
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO resumes (filename, content, summary, uploaded_at, used_fallback, top_words)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (file.filename, text, summary, uploaded_at, used_fallback, ",".join(top_words)))
+        conn.commit()
+        conn.close()
+
+        return {
+            "message": "Resume uploaded successfully",
+            "filename": file.filename,
+            "uploaded_at": uploaded_at,
+            "summary": summary,
+            "used_fallback": used_fallback,
+            "top_words": top_words
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/insights")
+def get_insights(id: int = None, limit: int = 50):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    if id:
+        cursor.execute("SELECT id, filename, summary, uploaded_at, used_fallback, top_words FROM resumes WHERE id = ?", (id,))
+        row = cursor.fetchone()
+        conn.close()
+        if not row:
+            return {"error": "Resume not found"}
+        return {
+            "id": row[0],
+            "filename": row[1],
+            "summary": row[2],
+            "uploaded_at": row[3],
+            "used_fallback": row[4],
+            "top_words": row[5].split(",") if row[5] else []
+        }
+
+    cursor.execute("SELECT id, filename, summary, uploaded_at, used_fallback, top_words FROM resumes ORDER BY id DESC LIMIT ?", (limit,))
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [
+        {
+            "id": r[0],
+            "filename": r[1],
+            "summary": r[2],
+            "uploaded_at": r[3],
+            "used_fallback": r[4],
+            "top_words": r[5].split(",") if r[5] else []
+        }
+        for r in rows
+    ]
